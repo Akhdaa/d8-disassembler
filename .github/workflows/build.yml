@@ -33,11 +33,10 @@ jobs:
           echo "DEPOT_TOOLS_UPDATE=0" >> $GITHUB_ENV
 
       - name: Fetch V8
-        env:
-          PATH: ${{ github.workspace }}/../../depot_tools:$PATH
         run: |
-          export PATH="$HOME/depot_tools:$PATH"
-          mkdir target && cd target
+          export PATH="/home/runner/depot_tools:/usr/local/bin:/usr/bin:/bin:$PATH"
+          which fetch gclient || { echo "depot_tools not in PATH"; ls /home/runner/depot_tools | head; exit 1; }
+          mkdir -p target && cd target
           fetch v8 2>&1 | tail -30
           cd v8
           git checkout $V8_BRANCH 2>&1 | tail -3
@@ -45,9 +44,9 @@ jobs:
           gclient runhooks 2>&1 | tail -20
 
       - name: Patch V8
-        env:
-          PATH: ${{ github.workspace }}/../../depot_tools:$PATH
         run: |
+          export PATH="/home/runner/depot_tools:/usr/local/bin:/usr/bin:/bin:$PATH"
+          sudo apt-get update -qq
           sudo apt-get install -y powershell 2>/dev/null || {
             wget -q https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb -O /tmp/pm.deb
             sudo dpkg -i /tmp/pm.deb
@@ -58,7 +57,7 @@ jobs:
       - name: Build D8
         id: build
         run: |
-          export PATH="$HOME/depot_tools:$PATH"
+          export PATH="/home/runner/depot_tools:/usr/local/bin:/usr/bin:/bin:$PATH"
           cd target/v8
           mkdir -p out.gn/x64.release
           cat > out.gn/x64.release/args.gn <<'EOF'

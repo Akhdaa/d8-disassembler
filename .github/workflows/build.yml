@@ -29,13 +29,28 @@ jobs:
       - name: Depot Tools
         run: |
           git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git $HOME/depot_tools
-          # Bootstrap: python3_bin_reldir.txt dibuat saat pertama kali invoke depot_tools
           $HOME/depot_tools/gclient --version 2>&1 | head -5 || true
-          ls $HOME/depot_tools/python3_bin_reldir.txt && cat $HOME/depot_tools/python3_bin_reldir.txt && ls $HOME/depot_tools/$(cat $HOME/depot_tools/python3_bin_reldir.txt)/python3 | head
           echo "$HOME/depot_tools" >> $GITHUB_PATH
           echo "DEPOT_TOOLS_UPDATE=0" >> $GITHUB_ENV
 
+      - name: Cache V8 source + d8 build
+        uses: actions/cache@v4
+        with:
+          path: |
+            target/v8/src
+            target/v8/out.gn
+            target/v8/buildtools
+            target/v8/third_party
+            target/v8/build
+            target/v8/tools
+            target/v8/include
+            target/v8/test
+          key: v8-${{ env.V8_BRANCH }}-v1
+          restore-keys: |
+            v8-${{ env.V8_BRANCH }}-
+
       - name: Fetch V8
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           export PATH="/home/runner/depot_tools:$PATH"
           which fetch gclient gn ninja
@@ -63,6 +78,7 @@ jobs:
           export PATH="/home/runner/depot_tools:/usr/local/bin:/usr/bin:/bin:$PATH"
           cd target/v8
           mkdir -p out.gn/x64.release
+          if [ ! -f out.gn/x64.release/d8 ]; then
           cat > out.gn/x64.release/args.gn <<'EOF'
           is_debug = false
           target_cpu = "x64"
@@ -83,8 +99,9 @@ jobs:
           dcheck_always_on = false
           EOF
           gn gen out.gn/x64.release
+          fi
           ninja -C out.gn/x64.release d8
-          echo "artifact=d8-with-disassembler-${V8_BRANCH}-linux" >> $GITHUB_OUTPUT
+          echo "artifact=d8-with-disassembler-${V8_BRANCH}" >> $GITHUB_OUTPUT
 
       - name: Cleanup
         run: |
@@ -102,22 +119,18 @@ jobs:
       - name: Disassemble JSCs
         run: |
           set +e
-          pwd
-          ls -la | head -10
-          which d8 || echo "d8 not in PATH"
           cd target/v8/out.gn/x64.release
-          echo "PWD=$PWD GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
-          ls "$GITHUB_WORKSPACE"/*.jsc 2>&1 | head
+          ls -la d8 snapshot_blob.bin 2>&1
           mkdir -p disasm
           for f in preload main server; do
             SRC="$GITHUB_WORKSPACE/$f.jsc"
             if [ ! -f "$SRC" ]; then echo "MISSING: $SRC"; continue; fi
             echo "=== $f ==="
-            timeout 120 ./d8 --no-lazy --no-flush-bytecode --snapshot_blob snapshot_blob.bin \
+            timeout 120 ./d8 --no-lazy --no-flush-bytecode \
               -e "loadBytecode('$SRC')" > "disasm/$f.disasm.txt" 2>&1
             ec=$?
             echo "$f exit=$ec lines=$(wc -l < disasm/$f.disasm.txt)"
-            head -5 "disasm/$f.disasm.txt"
+            tail -3 "disasm/$f.disasm.txt"
           done
           exit 0
 

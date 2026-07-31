@@ -57,11 +57,12 @@ jobs:
         # language=PowerShell
         run: |
           ./patcher.ps1
+          # Paksa vs_toolchain deteksi VS 2026 (v18) di runner: short-circuit GetVisualStudioVersion
           $vs = "target/v8/build/vs_toolchain.py"
           $c = Get-Content $vs -Raw
-          $c = $c -replace 'supported_versions\s*=\s*\[[^\]]+\]', 'supported_versions = ["2019","2022","2026"]'
-          $c = $c -replace 'vc_version\s*=\s*\[[^\]]+\]', 'vc_version = ["14.2","14.5"]'
+          $c = $c -replace "(?m)^def GetVisualStudioVersion\(\):[\s\S]*?(?=^def )", "def GetVisualStudioVersion():`r`n    return '2026'`r`n`r`n`r`n"
           Set-Content $vs -Value $c -NoNewline
+          Get-Content $vs | Select-Object -Skip 180 -First 25
 
       - name: Build D8
         id: build

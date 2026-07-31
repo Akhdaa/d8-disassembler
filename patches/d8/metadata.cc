@@ -14,7 +14,7 @@ void Shell::DumpOpcodes(const v8::FunctionCallbackInfo<v8::Value>& info) {
         std::cout << "}";                                         \
     } while (false);
 
-    BYTECODE_LIST(D8_DUMP_OPCODE, D8_DUMP_OPCODE)
+    BYTECODE_LIST(D8_DUMP_OPCODE)
 #undef D8_DUMP_OPCODE
     std::cout << "]}" << std::endl;
 }

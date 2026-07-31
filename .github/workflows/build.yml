@@ -80,7 +80,7 @@ jobs:
               cmd = sys.argv[1] if len(sys.argv) > 1 else ""
               args = sys.argv[2:]
               if cmd == "get_toolchain_dir":
-                  # gni calls exec_script with "scope" → output must be valid GN scope: key = value
+                  # gni calls exec_script with "scope" -> output must be valid GN scope: key = value
                   print('visual_studio_path = "C:/Program Files/Microsoft Visual Studio/18/Enterprise"')
                   print('visual_studio_version = "2026"')
                   print('wdk_path = ""')
@@ -93,7 +93,7 @@ jobs:
           '''
           import textwrap
           stub = textwrap.dedent(stub).lstrip() if hasattr(stub, "strip") else stub.lstrip('\n')
-          open(r'target/v8/build/vs_toolchain.py', 'w', encoding='ascii', newline='\n').write(stub)
+          open(r'target/v8/build/vs_toolchain.py', 'w', encoding='utf-8', newline='\n').write(stub)
           print(open(r'target/v8/build/vs_toolchain.py').read())
 
       - name: Build D8

@@ -101,17 +101,28 @@ jobs:
       # Load .jsc & dump bytecode disassembly per file
       - name: Disassemble JSCs
         run: |
+          set +e
+          pwd
+          ls -la | head -10
+          which d8 || echo "d8 not in PATH"
           cd target/v8/out.gn/x64.release
+          echo "PWD=$PWD GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          ls "$GITHUB_WORKSPACE"/*.jsc 2>&1 | head
           mkdir -p disasm
           for f in preload main server; do
-            if [ -f "$GITHUB_WORKSPACE/$f.jsc" ]; then
-              timeout 60 ./d8 --no-lazy --no-flush-bytecode --snapshot_blob snapshot_blob.bin \
-                -e "loadBytecode('$GITHUB_WORKSPACE/$f.jsc')" > "disasm/$f.disasm.txt" 2>&1
-              echo "$f done: $(wc -l < disasm/$f.disasm.txt) lines"
-            fi
+            SRC="$GITHUB_WORKSPACE/$f.jsc"
+            if [ ! -f "$SRC" ]; then echo "MISSING: $SRC"; continue; fi
+            echo "=== $f ==="
+            timeout 120 ./d8 --no-lazy --no-flush-bytecode --snapshot_blob snapshot_blob.bin \
+              -e "loadBytecode('$SRC')" > "disasm/$f.disasm.txt" 2>&1
+            ec=$?
+            echo "$f exit=$ec lines=$(wc -l < disasm/$f.disasm.txt)"
+            head -5 "disasm/$f.disasm.txt"
           done
+          exit 0
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: disassembly-${{ env.V8_BRANCH }}
           path: target/v8/out.gn/x64.release/disasm

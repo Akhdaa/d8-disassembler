@@ -79,8 +79,8 @@ jobs:
           v8_enable_sandbox = false
           dcheck_always_on = false
           EOF
-          gn gen out.gn/x64.release 2>&1 | tail -20
-          ninja -C out.gn/x64.release d8 2>&1 | tail -20
+          gn gen out.gn/x64.release
+          ninja -C out.gn/x64.release d8
           echo "artifact=d8-with-disassembler-${V8_BRANCH}-linux" >> $GITHUB_OUTPUT
 
       - name: Cleanup

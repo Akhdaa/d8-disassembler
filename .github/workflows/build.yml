@@ -94,6 +94,25 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.build.outputs.artifact }}
+          name: ${{ steps.build.outputs.artifact }}-linux
           path: target/v8/out.gn/x64.release
           compression-level: 9
+
+      # Load .jsc & dump bytecode disassembly per file
+      - name: Disassemble JSCs
+        run: |
+          cd target/v8/out.gn/x64.release
+          mkdir -p disasm
+          for f in preload main server; do
+            if [ -f "$GITHUB_WORKSPACE/$f.jsc" ]; then
+              timeout 60 ./d8 --no-lazy --no-flush-bytecode --snapshot_blob snapshot_blob.bin \
+                -e "loadBytecode('$GITHUB_WORKSPACE/$f.jsc')" > "disasm/$f.disasm.txt" 2>&1
+              echo "$f done: $(wc -l < disasm/$f.disasm.txt) lines"
+            fi
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: disassembly-${{ env.V8_BRANCH }}
+          path: target/v8/out.gn/x64.release/disasm
+          compression-level: 0

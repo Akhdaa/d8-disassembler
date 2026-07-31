@@ -57,6 +57,11 @@ jobs:
         # language=PowerShell
         run: |
           ./patcher.ps1
+          $vs = "target/v8/build/vs_toolchain.py"
+          $c = Get-Content $vs -Raw
+          $c = $c -replace 'supported_versions\s*=\s*\[[^\]]+\]', 'supported_versions = ["2019","2022","2026"]'
+          $c = $c -replace 'vc_version\s*=\s*\[[^\]]+\]', 'vc_version = ["14.2","14.5"]'
+          Set-Content $vs -Value $c -NoNewline
 
       - name: Build D8
         id: build

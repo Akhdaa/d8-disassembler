@@ -29,13 +29,16 @@ jobs:
       - name: Depot Tools
         run: |
           git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git $HOME/depot_tools
+          # Bootstrap: python3_bin_reldir.txt dibuat saat pertama kali invoke depot_tools
+          $HOME/depot_tools/gclient --version 2>&1 | head -5 || true
+          ls $HOME/depot_tools/python3_bin_reldir.txt && cat $HOME/depot_tools/python3_bin_reldir.txt && ls $HOME/depot_tools/$(cat $HOME/depot_tools/python3_bin_reldir.txt)/python3 | head
           echo "$HOME/depot_tools" >> $GITHUB_PATH
           echo "DEPOT_TOOLS_UPDATE=0" >> $GITHUB_ENV
 
       - name: Fetch V8
         run: |
-          export PATH="/home/runner/depot_tools:/usr/local/bin:/usr/bin:/bin:$PATH"
-          which fetch gclient || { echo "depot_tools not in PATH"; ls /home/runner/depot_tools | head; exit 1; }
+          export PATH="/home/runner/depot_tools:$PATH"
+          which fetch gclient gn ninja
           mkdir -p target && cd target
           fetch v8 2>&1 | tail -30
           cd v8

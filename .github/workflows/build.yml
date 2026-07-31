@@ -59,8 +59,10 @@ jobs:
           ./patcher.ps1
           # Paksa vs_toolchain deteksi VS 2026 (v18) di runner: short-circuit GetVisualStudioVersion
           $vs = "target/v8/build/vs_toolchain.py"
+          Copy-Item $vs "$vs.bak" -Force -ErrorAction SilentlyContinue
           $c = Get-Content $vs -Raw
-          $c = $c -replace "(?m)^def GetVisualStudioVersion\(\):[\s\S]*?(?=^def )", "def GetVisualStudioVersion():`r`n    return '2026'`r`n`r`n`r`n"
+          $c = $c -replace "raise Exception\('No supported Visual Studio can be found\.'[^)]*\)", "pass"
+          $c = $c -replace "return commands\[sys\.argv\[1\]\]\(\*sys\.argv\[2:\]\)", "return commands[sys.argv[1]](*sys.argv[2:]) if sys.argv[1] != 'get_toolchain_dir' else (print('C:/Program Files/Microsoft Visual Studio/18/Enterprise'), sys.exit(0))[1]"
           Set-Content $vs -Value $c -NoNewline
           Get-Content $vs | Select-Object -Skip 180 -First 25
 

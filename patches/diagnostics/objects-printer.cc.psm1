@@ -12,16 +12,21 @@ function Patch {
         $Body += @"
   os << "\nStart ScopeInfoChain\n";
   Tagged<ScopeInfo> current_scope_info = this->scope_info();
-  for (int scope_depth = 0; scope_depth < 64; ++scope_depth) {
+  for (int scope_depth = 0; scope_depth < 4; ++scope_depth) {
+    if (current_scope_info.ptr() == kNullAddress) break;
     os << "\nStart ScopeInfo depth " << scope_depth << "\n";
     current_scope_info->ScopeInfoPrint(os);
     os << "End ScopeInfo depth " << scope_depth << "\n";
     if (!current_scope_info->HasOuterScopeInfo()) break;
-    current_scope_info = current_scope_info->OuterScopeInfo();
+    Tagged<ScopeInfo> outer = current_scope_info->OuterScopeInfo();
+    if (outer.ptr() == current_scope_info.ptr()) break;
+    if (outer.ptr() == kNullAddress) break;
+    current_scope_info = outer;
   }
   os << "\nEnd ScopeInfoChain\n";
   os << "\nStart BytecodeArray\n";
   if (isolate != nullptr && this->HasBytecodeArray()) {
+    os << "kBytecodeOffset=" << this->function_data(kAcquireLoad).ptr() << "\n";
     this->GetActiveBytecodeArray(isolate)->Disassemble(os);
   } else {
     os << "<none>\n";

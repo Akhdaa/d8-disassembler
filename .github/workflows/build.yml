@@ -103,7 +103,7 @@ jobs:
           gn gen out.gn/x64.release
           fi
           ninja -C out.gn/x64.release d8
-          echo "artifact=d8-with-disassembler-${V8_BRANCH}-linux" >> $GITHUB_OUTPUT
+          echo "artifact=d8-with-disassembler-${V8_BRANCH}" >> $GITHUB_OUTPUT
 
       - name: Prune for artifact
         run: |

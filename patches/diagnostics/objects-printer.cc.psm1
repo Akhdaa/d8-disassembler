@@ -100,7 +100,7 @@ function Patch {
             -Patterns @('case SHARED_FUNCTION_INFO_TYPE:', 'else', '}') `
             -Insert @"
       os << "\nStart SharedFunctionInfo\n";
-      shared->SharedFunctionInfoPrint(os);
+      SharedFunctionInfo::cast(*this)->SharedFunctionInfoPrint(os);
       os << "\nEnd SharedFunctionInfo\n";
 "@
         return $Body

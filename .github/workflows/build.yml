@@ -7,6 +7,10 @@ on:
         description: 'V8 Version / Branch'
         required: true
         default: '11.8.172.18'
+      patch_variant:
+        description: 'Patch set to apply (full|none)'
+        required: false
+        default: 'full'
 
 jobs:
   build:
@@ -28,7 +32,7 @@ jobs:
 
       - name: Depot Tools
         run: |
-          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git $HOME/depot_tools
+          git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git $HOME/depot_tools
           $HOME/depot_tools/gclient --version 2>&1 | head -5 || true
           echo "$HOME/depot_tools" >> $GITHUB_PATH
           echo "DEPOT_TOOLS_UPDATE=0" >> $GITHUB_ENV
@@ -45,7 +49,7 @@ jobs:
             target/v8/tools
             target/v8/include
             target/v8/test
-          key: v8-${{ env.V8_BRANCH }}-v1
+          key: v8-${{ env.V8_BRANCH }}-v2
           restore-keys: |
             v8-${{ env.V8_BRANCH }}-
 
@@ -79,64 +83,83 @@ jobs:
           cd target/v8
           mkdir -p out.gn/x64.release
           if [ ! -f out.gn/x64.release/d8 ]; then
-          cat > out.gn/x64.release/args.gn <<'EOF'
-          is_debug = false
-          target_cpu = "x64"
-          v8_monolithic = false
-          v8_use_external_startup_data = true
-          v8_static_library = true
-          v8_enable_disassembler = true
-          v8_enable_object_print = true
-          v8_enable_sandbox = true
-          v8_enable_pointer_compression = true
-          v8_enable_pointer_compression_shared_cage = true
-          v8_enable_external_code_space = true
-          is_clang = true
-          use_custom_libcxx = false
-          treat_warnings_as_errors = false
-          symbol_level = 0
-          v8_enable_sandbox = false
-          dcheck_always_on = false
-          EOF
-          gn gen out.gn/x64.release
+            cat > out.gn/x64.release/args.gn <<'EOF'
+is_debug = false
+target_cpu = "x64"
+v8_monolithic = false
+v8_use_external_startup_data = true
+v8_static_library = true
+v8_enable_disassembler = true
+v8_enable_object_print = true
+v8_enable_sandbox = true
+v8_enable_pointer_compression = true
+v8_enable_pointer_compression_shared_cage = true
+v8_enable_external_code_space = true
+is_clang = true
+use_custom_libcxx = false
+treat_warnings_as_errors = false
+symbol_level = 0
+v8_enable_sandbox = false
+dcheck_always_on = false
+EOF
+            gn gen out.gn/x64.release
           fi
           ninja -C out.gn/x64.release d8
           echo "artifact=d8-with-disassembler-${V8_BRANCH}" >> $GITHUB_OUTPUT
 
-      - name: Cleanup
+      - name: Prune for artifact
         run: |
           cd target/v8/out.gn/x64.release
           rm -rf gen obj 2>/dev/null || true
           rm -f *.ninja_* build.ninja.d 2>/dev/null || true
+          ls -la d8 snapshot_blob.bin
 
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.build.outputs.artifact }}-linux
           path: target/v8/out.gn/x64.release
           compression-level: 9
+          if-no-files-found: error
 
-      # Load .jsc & dump bytecode disassembly per file
-      - name: Disassemble JSCs
+  disasm:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        jsc_file: [preload, main, server]
+    env:
+      V8_BRANCH: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.v8_branch || '11.8.172.18' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: d8-with-disassembler-${{ env.V8_BRANCH }}-linux
+          path: d8-bin
+
+      - name: Allow execute
+        run: chmod +x d8-bin/d8
+
+      - name: Run disasm on ${{ matrix.jsc_file }}
         run: |
           set +e
-          cd target/v8/out.gn/x64.release
-          ls -la d8 snapshot_blob.bin 2>&1
-          mkdir -p disasm
-          for f in preload main server; do
-            SRC="$GITHUB_WORKSPACE/$f.jsc"
-            if [ ! -f "$SRC" ]; then echo "MISSING: $SRC"; continue; fi
-            echo "=== $f ==="
-            timeout 120 ./d8 --no-lazy --no-flush-bytecode \
-              -e "loadBytecode('$SRC')" > "disasm/$f.disasm.txt" 2>&1
-            ec=$?
-            echo "$f exit=$ec lines=$(wc -l < disasm/$f.disasm.txt)"
-            tail -3 "disasm/$f.disasm.txt"
-          done
+          cd d8-bin
+          ls -la d8 snapshot_blob.bin
+          SRC="$GITHUB_WORKSPACE/${{ matrix.jsc_file }}.jsc"
+          ls -la "$SRC"
+          mkdir -p ../out
+          timeout 300 ./d8 --no-lazy --no-flush-bytecode \
+            -e "loadBytecode('$SRC')" > "../out/${{ matrix.jsc_file }}.disasm.txt" 2>&1
+          echo "exit=$? lines=$(wc -l < ../out/${{ matrix.jsc_file }}.disasm.txt)"
+          head -20 "../out/${{ matrix.jsc_file }}.disasm.txt"
+          tail -20 "../out/${{ matrix.jsc_file }}.disasm.txt"
           exit 0
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: disassembly-${{ env.V8_BRANCH }}
-          path: target/v8/out.gn/x64.release/disasm
+          name: disasm-${{ env.V8_BRANCH }}-${{ matrix.jsc_file }}
+          path: out
           compression-level: 0

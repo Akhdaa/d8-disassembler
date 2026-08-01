@@ -82,29 +82,28 @@ jobs:
           cd target/v8
           mkdir -p out.gn/x64.release
           if [ ! -f out.gn/x64.release/d8 ]; then
-            cat > out.gn/x64.release/args.gn <<'EOF'
-is_debug = false
-target_cpu = "x64"
-v8_monolithic = false
-v8_use_external_startup_data = true
-v8_static_library = true
-v8_enable_disassembler = true
-v8_enable_object_print = true
-v8_enable_sandbox = true
-v8_enable_pointer_compression = true
-v8_enable_pointer_compression_shared_cage = true
-v8_enable_external_code_space = true
-is_clang = true
-use_custom_libcxx = false
-treat_warnings_as_errors = false
-symbol_level = 0
-v8_enable_sandbox = false
-dcheck_always_on = false
-EOF
-            gn gen out.gn/x64.release
+          {
+            echo 'is_debug = false'
+            echo 'target_cpu = "x64"'
+            echo 'v8_monolithic = false'
+            echo 'v8_use_external_startup_data = true'
+            echo 'v8_static_library = true'
+            echo 'v8_enable_disassembler = true'
+            echo 'v8_enable_object_print = true'
+            echo 'v8_enable_sandbox = false'
+            echo 'v8_enable_pointer_compression = true'
+            echo 'v8_enable_pointer_compression_shared_cage = true'
+            echo 'v8_enable_external_code_space = true'
+            echo 'is_clang = true'
+            echo 'use_custom_libcxx = false'
+            echo 'treat_warnings_as_errors = false'
+            echo 'symbol_level = 0'
+            echo 'dcheck_always_on = false'
+          } > out.gn/x64.release/args.gn
+          gn gen out.gn/x64.release
           fi
           ninja -C out.gn/x64.release d8
-          echo "artifact=d8-with-disassembler-${V8_BRANCH}" >> $GITHUB_OUTPUT
+          echo "artifact=d8-with-disassembler-${V8_BRANCH}-linux" >> $GITHUB_OUTPUT
 
       - name: Prune for artifact
         run: |

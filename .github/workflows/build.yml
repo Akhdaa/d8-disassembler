@@ -148,7 +148,7 @@ jobs:
           SRC="$GITHUB_WORKSPACE/${{ matrix.jsc_file }}.jsc"
           ls -la "$SRC"
           mkdir -p ../out
-          timeout 300 ./d8 --no-lazy --no-flush-bytecode \
+          timeout 300 ./d8 --no-lazy --no-flush-bytecode --stack-size=65536 \
             -e "loadBytecode('$SRC')" > "../out/${{ matrix.jsc_file }}.disasm.txt" 2>&1
           echo "exit=$? lines=$(wc -l < ../out/${{ matrix.jsc_file }}.disasm.txt)"
           head -20 "../out/${{ matrix.jsc_file }}.disasm.txt"
